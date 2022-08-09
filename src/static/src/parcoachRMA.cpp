@@ -101,45 +101,58 @@ void ParcoachRMA::instrumentMemAccesses(Function &F,LLVMContext &Ctx, DataLayout
   
   	// For FORTRAN codes
   	if(I.getOpcode()==Instruction::BitCast){
-  		if(I.getOperand(0)->getName().startswith ("mpi_")){
-                                  count_MPI++;
+  		if(I.getOperand(0)->getName().startswith("mpi_")){
+            count_MPI++;
   		}
-  
-  		if( I.getOperand(0)->getName() == ("mpi_put_")){
-  			//DEBUG INFO: I.print(errs(),nullptr);
+  		if( I.getOperand(0)->getName() == "mpi_put_"){
   			I.getOperand(0)->setName("new_put_");
   	 		count_PUT++;
-  		}else if( I.getOperand(0)->getName() == ("mpi_get_")){
+  		}else if( I.getOperand(0)->getName() == "mpi_get_"){
   			I.getOperand(0)->setName("new_get_");
   			count_GET++;
-  		}else if( I.getOperand(0)->getName() == ("mpi_accumulate_")){
+  		}else if( I.getOperand(0)->getName() == "mpi_accumulate_"){
   			I.getOperand(0)->setName("new_accumulate_");
   			count_ACC++;
-  		}else if( I.getOperand(0)->getName() == ("mpi_win_create_")){
+  		}else if( I.getOperand(0)->getName() == "mpi_win_create_"){
   			I.getOperand(0)->setName("new_win_create_");
   	 		count_Win++;
-  		}else if( I.getOperand(0)->getName() == ("mpi_win_free_")){
+  		}else if( I.getOperand(0)->getName() == "mpi_win_free_"){
   			I.getOperand(0)->setName("new_win_free_");
   	 		count_Free++;
-  		}else if( I.getOperand(0)->getName() == ("mpi_fence_")){
+  		}else if( I.getOperand(0)->getName() == "mpi_fence_"){
   			I.getOperand(0)->setName("new_fence_");
   	 		count_FENCE++;
-  		}else if( I.getOperand(0)->getName() == ("mpi_win_unlock_all_")){
+  		}else if( I.getOperand(0)->getName() == "mpi_win_unlock_all_"){
   			I.getOperand(0)->setName("new_win_unlock_all_");
   	 		count_UNLOCKALL++;
-  		}else if( I.getOperand(0)->getName() == ("mpi_win_unlock_")){
+  		}else if( I.getOperand(0)->getName() == "mpi_win_unlock_"){
   			I.getOperand(0)->setName("new_win_unlock_");
   	 		count_UNLOCK++;
-  		}else if( I.getOperand(0)->getName() == ("mpi_win_lock_")){
+  		}else if( I.getOperand(0)->getName() == "mpi_win_lock_"){
   			I.getOperand(0)->setName("new_win_lock_");
   	 		count_LOCK++;
-  		}else if( I.getOperand(0)->getName() == ("mpi_win_lock_all_")){
+  		}else if( I.getOperand(0)->getName() == "mpi_win_lock_all_"){
   			I.getOperand(0)->setName("new_win_lock_all_");
   	 		count_LOCKALL++;
-  		}else if( I.getOperand(0)->getName() == ("mpi_win_flush_")){
+  		}else if( I.getOperand(0)->getName() == "mpi_win_flush_"){
   			I.getOperand(0)->setName("new_win_flush_");
   	 		count_FLUSH++;
+  		}else if( I.getOperand(0)->getName() == "mpi_barrier_"){
+  			I.getOperand(0)->setName("new_barrier_");
+  	 		count_BARRIER++;
   		}
+
+  		if(I.getOperand(0)->getName().startswith("mpix_")){
+            count_MPIX++;
+  		}else if( I.getOperand(0)->getName() == "mpix_put_notify_"){
+  			I.getOperand(0)->setName("new_put_notify_");
+  		}else if( I.getOperand(0)->getName() == "mpix_win_create_notify_"){
+  			I.getOperand(0)->setName("new_win_create_notify_");
+  	 		count_Win_notify++;
+  		}else if( I.getOperand(0)->getName() == "mpix_win_wait_notify_"){
+  			I.getOperand(0)->setName("new_win_wait_notify_");
+  	 		count_Win++;
+        }
   	}
   
   	// If the instruction is a call
@@ -151,18 +164,14 @@ void ParcoachRMA::instrumentMemAccesses(Function &F,LLVMContext &Ctx, DataLayout
   	 			count_MPI++;
   	 			if(calledFunction->getName() == "MPI_Get"){
   	 				count_GET++;
-  					//DEBUG INFO: errs() << "PARCOACH DEBUG: Found " << calledFunction->getName() << " from " << ci->getArgOperand(7) << " to " << ci->getArgOperand(0) << "\n";
-  					//calledFunction->setName("new_Get");
   					ReplaceCallInst(I, *ci, line, file, Ctx, "new_Get");
 						toDelete.push_back(ci);
   	 			}else if(calledFunction->getName() == "MPI_Put"){
   	 				count_PUT++;
-  					//DEBUG INFO: errs() << "PARCOACH DEBUG: Found Put from " << ci->getArgOperand(0) << " to " << ci->getArgOperand(7) << "\n";
   					ReplaceCallInst(I, *ci, line, file, Ctx, "new_Put");
 						toDelete.push_back(ci);
   	 			}else if(calledFunction->getName() == "MPI_Win_create"){
   	 				count_Win++;
-  					//DEBUG INFO: errs() << "PARCOACH DEBUG: Found Win_create on " << ci->getArgOperand(0) << "\n";
   					calledFunction->setName("new_Win_create");
   	 			}else if(calledFunction->getName() == "MPI_Accumulate"){
   					calledFunction->setName("new_Accumulate");
@@ -188,8 +197,32 @@ void ParcoachRMA::instrumentMemAccesses(Function &F,LLVMContext &Ctx, DataLayout
   				}else if(calledFunction->getName() == "MPI_Win_free"){
   					calledFunction->setName("new_Win_free");
   					count_Free++;
+  				}else if(calledFunction->getName() == "MPI_Barrier"){
+  					calledFunction->setName("new_Barrier");
+  					count_BARRIER++;
   				}
-  		 }
+  		    }
+  			if(calledFunction->getName().startswith ("MPIX_")){
+  	 			count_MPIX++;
+  	 			if(calledFunction->getName() == "MPIX_Put_notify"){
+  	 				count_PUT_NOTIFY++;
+  					ReplaceCallInst(I, *ci, line, file, Ctx, "new_Put_notify");
+						toDelete.push_back(ci);
+                }else if(calledFunction->getName() == "MPIX_Get_notify"){
+  	 				count_GET_NOTIFY++;
+  					ReplaceCallInst(I, *ci, line, file, Ctx, "new_Get_notify");
+						toDelete.push_back(ci);
+  	 			}else if(calledFunction->getName() == "MPIX_Win_create_notify"){
+  	 				count_Win_notify++;
+  					calledFunction->setName("new_Win_create_notify");
+  	 			}else if(calledFunction->getName() == "MPIX_Win_wait_notify"){
+  	 				count_WAIT_NOTIFY++;
+  					calledFunction->setName("new_Win_wait_notify");
+  	 			}else if(calledFunction->getName() == "MPIX_Win_test_notify"){
+  	 				count_TEST_NOTIFY++;
+  					calledFunction->setName("new_Win_test_notify");
+  				}
+  		    }
   		}
   	// If the instruction is a LOAD or a STORE
   	} else if( StoreInst *SI = dyn_cast<StoreInst>(&I)){
@@ -226,19 +259,27 @@ bool ParcoachRMA::runOnFunction(Function &F)
 		LLVMContext &Ctx = F.getContext();
 
 		instrumentMemAccesses(F, Ctx, datalayout);
+        delete datalayout;
 
-		CyanErr() << "PARCOACH STATISTICS (function " << F.getName() << "): " << count_MPI << " MPI functions including " << count_GET << " MPI_Get, " 
-																																		 << count_PUT << " MPI_Put, "
-																																		 << count_ACC << " MPI_Accumulate, "
-																																		 << count_FENCE << " MPI_Win_fence, "
-													
+		CyanErr() << "PARCOACH STATISTICS (function " << F.getName() << "): " << count_MPI << " MPI functions including "
+                                                      << count_GET << " MPI_Get, "
+												      << count_PUT << " MPI_Put, "
+													  << count_ACC << " MPI_Accumulate, "
+													  << count_FENCE << " MPI_Win_fence, "
 													  << count_LOCK << " MPI_Lock, "
 													  << count_LOCKALL << " MPI_Lockall "
 													  << count_UNLOCK << " MPI_Unlock, "
 													  << count_UNLOCKALL << " MPI_Unlockall, "
 													  << count_Free << " MPI_Win_free, "
-																 																		 << count_Win << " MPI_Win_create \n";
+													  << count_BARRIER << " MPI_Barrier, "
+													  << count_Win << " MPI_Win_create \n";
 		CyanErr() << "PARCOACH STATISTICS (function " << F.getName() << "): " << count_LOAD << " LOAD and " << count_STORE << " STORE\n"; 
+		CyanErr() << "PARCOACH STATISTICS (function " << F.getName() << "): " << count_MPIX << " MPIX functions including "
+												      << count_PUT_NOTIFY << " MPIX_Put_notify, "
+												      << count_GET_NOTIFY << " MPIX_Get_notify, "
+												      << count_WAIT_NOTIFY << " MPIX_Win_wait_notify, "
+												      << count_TEST_NOTIFY << " MPIX_Win_test_notify, "
+													  << count_Win_notify << " MPIX_Win_create_notify \n";
 	//DEBUG INFO: dump the module// F.getParent()->print(errs(),nullptr); 
 
 	return true;
@@ -259,9 +300,16 @@ int ParcoachRMA::count_LOCK = 0;
 int ParcoachRMA::count_LOCKALL = 0;
 int ParcoachRMA::count_UNLOCK = 0;
 int ParcoachRMA::count_UNLOCKALL = 0;
-int ParcoachRMA::count_MPI =0;
-int ParcoachRMA::count_LOAD =0;
-int ParcoachRMA::count_STORE =0;
+int ParcoachRMA::count_BARRIER = 0;
+int ParcoachRMA::count_MPI = 0;
+int ParcoachRMA::count_MPIX = 0;
+int ParcoachRMA::count_LOAD = 0;
+int ParcoachRMA::count_STORE = 0;
+int ParcoachRMA::count_PUT_NOTIFY = 0;
+int ParcoachRMA::count_GET_NOTIFY = 0;
+int ParcoachRMA::count_WAIT_NOTIFY = 0;
+int ParcoachRMA::count_TEST_NOTIFY = 0;
+int ParcoachRMA::count_Win_notify = 0;
 
 
 static RegisterPass<ParcoachRMA> X("parcoach", "Parcoach RMA Pass", true, false);

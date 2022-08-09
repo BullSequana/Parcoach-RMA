@@ -4,6 +4,8 @@ project(parcoachRMA)
 message("You need LLVM 9 or higher to build this project")
 message("This is PARCOACH RMA")
 
+option(COVERAGE "Build with coverage" OFF)
+
 find_package(LLVM REQUIRED CONFIG)
 
 if((LLVM_PACKAGE_VERSION VERSION_LESS 9))
@@ -40,7 +42,10 @@ include_directories(${LLVM_INCLUDE_DIRS})
 
 # Activate all warnings
 add_compile_options(-Wall -Wno-int-to-pointer-cast)
-
+if (COVERAGE)
+    add_compile_options(-g --coverage)
+    add_link_options(-lgcov --coverage)
+endif(COVERAGE)
 
 add_subdirectory(src)
 add_subdirectory(lib)

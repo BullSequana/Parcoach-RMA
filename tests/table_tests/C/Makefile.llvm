@@ -1,0 +1,60 @@
+CC=clang
+MPICC=mpicc
+
+DIRNAME=$(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
+BINARIES=$(DIRNAME)/bin
+
+PARCOACHRMA_ROOT?=$(DIRNAME)/../../../build
+PARCOACH=$(PARCOACHRMA_ROOT)/lib/parcoachRMA.so
+LIBS=-L$(PARCOACHRMA_ROOT)/lib -lrma_analyzer -lpthread
+
+SRC_TEST= $(wildcard $(DIRNAME)/local_local/*.c) \
+          $(wildcard $(DIRNAME)/remote_local/*.c) \
+          $(wildcard $(DIRNAME)/remote_remote/*.c) \
+
+OBJ_TEST=$(SRC_TEST:.c=.o)
+EXEC_TEST=$(SRC_TEST:.c=)
+
+INSTALL_PREFIX?=$(DIRNAME)/build
+
+OPTFLAGS?=
+CFLAGS?=
+
+LLVM13?=0
+COVERAGE?=0
+
+ifeq (${LLVM13},1)
+  OPTFLAGS += -enable-new-pm=0
+endif
+
+ifeq (${COVERAGE},1)
+  CFLAGS += -g --coverage
+  LIBS += -lgcov --coverage
+endif
+
+all: $(EXEC_TEST)
+
+$(EXEC_TEST): $(OBJ_TEST)
+	mkdir -p $(DIRNAME)/bin
+	$(MPICC) -o $(DIRNAME)/bin/$(shell basename $@) $@.o $(LIBS)
+
+%.o: %.c
+	$(MPICC) $(CFLAGS) -o $*.bc -c -emit-llvm $<
+	opt -load $(PARCOACH) -parcoach $(OPTFLAGS) $*.bc -o $*INSTR.bc
+	$(CC) $(CFLAGS) -o $@ -c $*INSTR.bc
+
+clean:
+	\rm -rf $(DIRNAME)/$(EXEC_TEST) \
+			$(DIRNAME)/local_local/*.o \
+			$(DIRNAME)/local_local/*.bc \
+			$(DIRNAME)/local_local/*.gcno \
+			$(DIRNAME)/local_local/*.gcda \
+			$(DIRNAME)/remote_local/*.o \
+			$(DIRNAME)/remote_local/*.bc \
+			$(DIRNAME)/remote_local/*.gcno \
+			$(DIRNAME)/remote_local/*.gcda \
+			$(DIRNAME)/remote_remote/*.o \
+			$(DIRNAME)/remote_remote/*.bc \
+			$(DIRNAME)/remote_remote/*.gcno \
+			$(DIRNAME)/remote_remote/*.gcda \
+			$(DIRNAME)/bin

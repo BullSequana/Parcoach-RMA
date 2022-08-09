@@ -178,23 +178,23 @@ PROGRAM tra_adv
 
    disp_int = realextent
    size = jprecj*(jpk+1)*jpi*realextent
-   call MPI_WIN_CREATE(t3ns(1,1,1,2), size, disp_int, MPI_INFO_NULL, realcomm, wint3ns, ierr)
+   call mpi_win_create(t3ns(1,1,1,2), size, disp_int, MPI_INFO_NULL, realcomm, wint3ns, ierr)
    IF( ierr /= MPI_SUCCESS) THEN 
       WRITE (*,*) "MPI_ERROR line:", __LINE__ , ", rank: ", myrank
    END IF
 
-   call MPI_WIN_CREATE(t3sn(1,1,1,2), size, disp_int, MPI_INFO_NULL, realcomm, wint3sn, ierr)
+   call mpi_win_create(t3sn(1,1,1,2), size, disp_int, MPI_INFO_NULL, realcomm, wint3sn, ierr)
    IF( ierr /= MPI_SUCCESS) THEN 
       WRITE (*,*) "MPI_ERROR line:", __LINE__ , ", rank: ", myrank
    END IF
 
    size= jpreci*jpj*(jpk+1)*realextent
-   call MPI_WIN_CREATE(t3ew(1,1,1,2), size, disp_int, MPI_INFO_NULL, realcomm, wint3ew, ierr)
+   call mpi_win_create(t3ew(1,1,1,2), size, disp_int, MPI_INFO_NULL, realcomm, wint3ew, ierr)
    IF( ierr /= MPI_SUCCESS) THEN 
       WRITE (*,*) "MPI_ERROR line:", __LINE__ , ", rank: ", myrank
    END IF
 
-   call MPI_WIN_CREATE(t3we(1,1,1,2), size, disp_int, MPI_INFO_NULL, realcomm, wint3we, ierr)
+   call mpi_win_create(t3we(1,1,1,2), size, disp_int, MPI_INFO_NULL, realcomm, wint3we, ierr)
    IF( ierr /= MPI_SUCCESS) THEN 
       WRITE (*,*) "MPI_ERROR line:", __LINE__ , ", rank: ", myrank
    END IF
@@ -211,28 +211,28 @@ PROGRAM tra_adv
 
 
 
-   call MPI_Win_lock_all(0, wint3ns, ierr)
+   call mpi_win_lock_all(0, wint3ns, ierr)
    IF( ierr /= MPI_SUCCESS) THEN 
       WRITE (*,*) "MPI_ERROR line:", __LINE__ , ", rank: ", myrank
    END IF
-   call MPI_Win_lock_all(0, wint3sn, ierr)
-   IF( ierr /= MPI_SUCCESS) THEN 
-      WRITE (*,*) "MPI_ERROR line:", __LINE__ , ", rank: ", myrank
-   END IF
-
-   call MPI_Win_lock_all(0, wint3ew, ierr)
+   call mpi_win_lock_all(0, wint3sn, ierr)
    IF( ierr /= MPI_SUCCESS) THEN 
       WRITE (*,*) "MPI_ERROR line:", __LINE__ , ", rank: ", myrank
    END IF
 
-   call MPI_Win_lock_all(0, wint3we, ierr)
+   call mpi_win_lock_all(0, wint3ew, ierr)
+   IF( ierr /= MPI_SUCCESS) THEN 
+      WRITE (*,*) "MPI_ERROR line:", __LINE__ , ", rank: ", myrank
+   END IF
+
+   call mpi_win_lock_all(0, wint3we, ierr)
    IF( ierr /= MPI_SUCCESS) THEN 
       WRITE (*,*) "MPI_ERROR line:", __LINE__ , ", rank: ", myrank
    END IF
 
    WRITE (*,*) "rank", myrank, "nbondi:", nbondi, " nbondj:", nbondj, "has locked all"
    CALL flush(6)
-   CALL MPI_Barrier(realcomm, ierr)
+   CALL mpi_barrier(realcomm, ierr)
    IF( ierr /= MPI_SUCCESS) THEN 
       WRITE (*,*) "MPI_ERROR line:", __LINE__ , ", rank: ", myrank
    END IF
@@ -281,10 +281,6 @@ PROGRAM tra_adv
    temps_com1= temps_test - temps_test_deb
    WRITE (*,*) "rank: ", myrank, " reached second data exchange"
    CALL flush(6)
-
-   ! This barrier should not be needed for the program to run, but without them the program does not work.
-   ! These barriers should be commented to find where the race conditions occur.
-   CALL MPI_Barrier(realcomm, ierr)
 
    CALL mpp_lnk_3d_test(zwy, 2)
    CALL cpu_time(temps_test_deb)
@@ -350,10 +346,6 @@ PROGRAM tra_adv
   temps_com3 = temps_test_deb - temps_test
   WRITE (*,*) "rank: ", myrank, " reached fourth data exchange"
   CALL flush(6)
-
-  ! This barrier should not be needed for the program to run, but without them the program does not work.
-  ! These barriers should be commented out to find where the race conditions occur.
-  CALL MPI_Barrier(realcomm, ierr)
 
   CALL mpp_lnk_3d_test(zwy, 4)
   CALL cpu_time(temps_test)
@@ -545,6 +537,8 @@ CONTAINS
             WRITE (*,*) "MPI_ERROR line:", __LINE__ , ", rank: ", myrank
          END IF
 
+         CALL mpi_barrier(realcomm, ierr)
+
          WRITE (*,*) "after flush1, rank=" , myrank
          DO WHILE(t3ew(jpj,jpreci,jpk+1,2) /= nbmpp)
             IF (t3ew(jpj,jpreci,jpk+1,2) > nbmpp) THEN 
@@ -579,6 +573,8 @@ CONTAINS
             WRITE (*,*) "MPI_ERROR line:", __LINE__ , ", rank: ", myrank
          END IF
 
+         CALL mpi_barrier(realcomm, ierr)
+
          WRITE (*,*) "after flush2, rank=" , myrank
          DO WHILE(t3ew(jpj,jpreci,jpk+1,2) /= nbmpp .OR. t3we(jpj,jpreci,jpk+1,2) /= nbmpp)
             IF (t3ew(jpj,jpreci,jpk+1,2) > nbmpp .OR. t3we(jpj,jpreci,jpk+1,2) > nbmpp) THEN 
@@ -601,6 +597,8 @@ CONTAINS
          IF( ierr /= MPI_SUCCESS) THEN 
             WRITE (*,*) "MPI_ERROR line:", __LINE__ , ", rank: ", myrank
          END IF
+
+         CALL mpi_barrier(realcomm, ierr)
 
          WRITE (*,*) "after flush3, rank=" , myrank
          DO WHILE(t3we(jpj,jpreci,jpk+1,2) /= nbmpp)
@@ -660,6 +658,8 @@ CONTAINS
             WRITE (*,*) "MPI_ERROR line:", __LINE__ , ", rank: ", myrank
          END IF
 
+         CALL mpi_barrier(realcomm, ierr)
+
          WRITE (*,*) "after flush4, rank=" , myrank
          DO WHILE(t3ns(jpi, jprecj, jpk+1, 2) /= nbmpp)
             IF ( t3ns(jpi, jprecj, jpk+1, 2) > nbmpp ) THEN 
@@ -693,6 +693,8 @@ CONTAINS
             WRITE (*,*) "MPI_ERROR line:", __LINE__ , ", rank: ", myrank
          END IF
 
+         CALL mpi_barrier(realcomm, ierr)
+
          WRITE (*,*) "after flush5, rank=" , myrank
          do while(t3sn(jpi, jprecj, jpk+1, 2) /= nbmpp .OR. t3ns(jpi, jprecj, jpk+1, 2) /= nbmpp)
             IF (t3sn(jpi, jprecj, jpk+1, 2) > nbmpp .OR. t3ns(jpi, jprecj, jpk+1, 2) > nbmpp) THEN 
@@ -718,6 +720,8 @@ CONTAINS
          IF( ierr /= MPI_SUCCESS) THEN 
             WRITE (*,*) "MPI_ERROR line:", __LINE__ , ", rank: ", myrank
          END IF
+
+         CALL mpi_barrier(realcomm, ierr)
 
          WRITE (*,*) "after flush6, rank=" , myrank
          DO WHILE(t3sn(jpi,jprecj,jpk+1,2) /= nbmpp)

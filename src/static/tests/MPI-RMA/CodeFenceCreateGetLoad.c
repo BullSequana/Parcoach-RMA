@@ -28,8 +28,9 @@ int main(int argc, char** argv){
   printf("I am rank %d,localbuf=%d \n", rank, localbuf[0]);
   MPI_Win_fence(0, win);
   MPI_Get(localbuf,1,MPI_INT,0, 0, 1, MPI_INT, win);
-  if(*localbuf%2==0)
-  localbuf[0]++;
+  if(*localbuf%2==0) {
+    localbuf[0]++;
+  }
 
    // printf("I am rank %d,localbuf=%d \n", rank, localbuf[0]);
   MPI_Win_fence(0, win);

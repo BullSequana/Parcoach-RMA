@@ -4,7 +4,7 @@
 #include <limits.h>
 #include <assert.h>
 
-void STORE(void *addr, uint64_t size, uint64_t line, char *filename)
+void STORE(void *addr, uint64_t size, int line, const char *filename)
 {
   uint64_t address = (uint64_t)addr;
   LOG(stderr,"Store address %" PRIu64 "\n", address);
@@ -16,7 +16,7 @@ void STORE(void *addr, uint64_t size, uint64_t line, char *filename)
                                       LOCAL_WRITE, line, filename);
 }
 
-void LOAD(void *addr, uint64_t size, uint64_t line, char *filename)
+void LOAD(void *addr, uint64_t size, int line, const char *filename)
 {
   uint64_t address = (uint64_t)addr;
   LOG(stderr,"Load address %" PRIu64 "\n", address);

@@ -1,7 +1,6 @@
 #ifndef __INTERVAL__H__
 #define __INTERVAL__H__
 #include <stdint.h>
-#include <mpi.h>
 #include "util.h"
 
 #define FILENAME_MAX_LENGTH 128
@@ -24,6 +23,8 @@ typedef struct Interval
   Access_type access_type;
   uint64_t low_bound;
   uint64_t up_bound;
+  /* Notification ID if used */
+  int notification_id;
   /* Debug infos needed for user feedback */
   int line;
   char filename[FILENAME_MAX_LENGTH];
@@ -38,22 +39,21 @@ void print_interval(Interval itv);
 
 /* Returns an Interval object with the parameters specified in the
  * routine */
-Interval *create_interval(uint64_t low_bound, uint64_t up_bound, Access_type access_type, int line, char* filename);
+Interval *create_interval(uint64_t low_bound, uint64_t up_bound,
+                          Access_type access_type, int notif_id,
+                          int line, const char* filename);
 
 void free_interval(Interval *itv);
 
 /* Getter routines for interval specifics */
-uint64_t get_low_bound(Interval *itv);
-uint64_t get_up_bound(Interval *itv);
-Access_type get_access_type(Interval *itv);
-int get_fileline(Interval *itv);
+uint64_t get_low_bound(const Interval *itv);
+uint64_t get_up_bound(const Interval *itv);
+Access_type get_access_type(const Interval *itv);
+int get_notif_id(const Interval *itv);
+int get_fileline(const Interval *itv);
 char* get_filename(Interval *itv);
 
 /* Returns 0 if the two intervals do not intersect, 1 otherwise. */
 int if_intersects(Interval itvA, Interval itvB);
-
-/* Builds a new interval from the union of the two intervals given in
- * parameters */
-Interval unite_intervals(Interval itvA, Interval itvB);
 
 #endif //__INTERVAL_H__

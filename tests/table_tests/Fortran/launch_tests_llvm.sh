@@ -3,17 +3,19 @@
 ret_ok=0
 ret_fail=0
 
-for elt in $(ls bin/*)
+path=$(readlink -f "${BASH_SOURCE:-$0}")
+dirpath=$(dirname ${path})
+
+for filename in $(ls ${dirpath}/bin/*)
 do
     rc=0;
-    prefix=$(echo $elt | cut -d'_' -f1)
-    if [[ $prefix == "bin/rr" ]]
+    if [[ "$filename" == *"bin/rr_"* ]]
     then
         nprocs=3
     else
         nprocs=2
     fi
-    mpirun -np $nprocs --oversubscribe $elt > /dev/null 2>&1 || rc="$?"
+    mpirun -np $nprocs --oversubscribe $filename > /dev/null 2>&1 || rc="$?"
 
     if (( "$rc" == 0 )); then
          ret=OK
@@ -25,7 +27,7 @@ do
          ret_fail=$(($ret_fail + 1))
     fi
 
-    echo "$elt: $ret"
+    echo "$filename: $ret"
 done
 
 echo "OK: $ret_ok, expected: 13"

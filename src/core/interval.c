@@ -31,26 +31,43 @@ static inline int check_access_rights(Interval itvA, Interval itvB)
 void print_interval(Interval itv)
 {
   LOG(stderr,"Interval = [%" PRIu64 " ,%" PRIu64 "] ", itv.low_bound, itv.up_bound);
-  if (itv.access_type == LOCAL_READ)
-    LOG(stderr,"LOCAL READ\n");
-  else if (itv.access_type == LOCAL_WRITE)
-    LOG(stderr,"LOCAL WRITE\n");
-  else if (itv.access_type == RMA_READ)
-    LOG(stderr,"RMA READ\n");
-  else // RMA WRITE
-    LOG(stderr,"RMA WRITE\n");
+  LOG(stderr,"notif_id %d ", itv.notification_id);
+  switch(itv.access_type) {
+    case LOCAL_READ:
+      LOG(stderr,"LOCAL READ\n");
+      break;
+    case LOCAL_WRITE:
+      LOG(stderr,"LOCAL WRITE\n");
+      break;
+    case RMA_READ:
+      LOG(stderr,"RMA READ\n");
+      break;
+    case RMA_WRITE:
+      LOG(stderr,"RMA WRITE\n");
+      break;
+    default:
+      LOG(stderr,"Unknown access type\n");
+  }
 }
 
-Interval *create_interval(uint64_t low_bound, uint64_t up_bound, Access_type access_type, int line, char* filename)
+Interval *create_interval(uint64_t low_bound, uint64_t up_bound,
+                          Access_type access_type, int notif_id,
+                          int line, const char* filename)
 {
-  Interval *itv = malloc(sizeof(Interval)); //TODO free
+  Interval *itv = malloc(sizeof(Interval));
   itv->low_bound = low_bound;
   itv->up_bound = up_bound;
   itv->access_type = access_type;
+  itv->notification_id = notif_id;
   itv->line = line;
   if (filename != NULL)
   {
-    strncpy(&(itv->filename[0]), filename, FILENAME_MAX_LENGTH - 1);
+    itv->filename[FILENAME_MAX_LENGTH - 1] = 0;
+    strncpy(&(itv->filename[0]), filename, FILENAME_MAX_LENGTH);
+    if (itv->filename[FILENAME_MAX_LENGTH - 1] != 0) {
+      LOG(stderr,"Error setting filename, overflow detected, resetting to empty\n");
+      memset(&(itv->filename[0]), 0, FILENAME_MAX_LENGTH);
+    }
     itv->filename[FILENAME_MAX_LENGTH - 1] = '\0';
   }
   else {
@@ -64,22 +81,27 @@ void free_interval(Interval *itv)
   free(itv);
 }
 
-uint64_t get_low_bound(Interval *itv)
+uint64_t get_low_bound(const Interval *itv)
 {
   return itv->low_bound;
 }
 
-uint64_t get_up_bound(Interval *itv)
+uint64_t get_up_bound(const Interval *itv)
 {
   return itv->up_bound;
 }
 
-Access_type get_access_type(Interval *itv)
+Access_type get_access_type(const Interval *itv)
 {
   return itv->access_type;
 }
 
-int get_fileline(Interval *itv)
+int get_notif_id(const Interval *itv)
+{
+  return itv->notification_id;
+}
+
+int get_fileline(const Interval *itv)
 {
   return itv->line;
 }
@@ -111,11 +133,4 @@ int if_intersects(Interval itvA, Interval itvB)
          Intersection de A & B = [itvB.low_bound ; itvA.up_bound] */
     return check_access_rights(itvA, itvB);
   }
-  return 0;
-}
-
-Interval unite_intervals(Interval itvA, Interval itvB)
-{
-  //TODO : TBD
-  return itvA;
 }

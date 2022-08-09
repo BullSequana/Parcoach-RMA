@@ -1,9 +1,4 @@
-CC=clang
-MPICC=OMPI_CC=clang mpicc
-
-PARCOACHRMA_ROOT?=../../build
-PARCOACH=$(PARCOACHRMA_ROOT)/lib/parcoachRMA.so
-LIBS=-L$(PARCOACHRMA_ROOT)/lib -lrma_analyzer
+CC=mpicc
 
 DIRNAME=$(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 BINARIES=$(DIRNAME)/bin
@@ -17,31 +12,18 @@ EXEC_TEST=$(SRC_TEST:.c=)
 
 INSTALL_PREFIX?=$(DIRNAME)/build
 
-OPTFLAGS=
-
-LLVM13?=0
-
-ifeq (${LLVM13},1)
-  OPTFLAGS += -enable-new-pm=0
-endif
-
 all: $(EXEC_TEST)
 
 $(EXEC_TEST): $(OBJ_TEST)
 	mkdir -p $(DIRNAME)/bin
-	$(MPICC) -o $(DIRNAME)/bin/$(shell basename $@) $@.o $(LIBS)
+	$(CC) -o $(DIRNAME)/bin/$(shell basename $@) $@.o
 
 %.o: %.c
-	$(CC) -g -o $*.bc -c -emit-llvm $<
-	opt -load $(PARCOACH) -parcoach $(OPTFLAGS) $*.bc -o $*INSTR.bc
-	$(CC) -g -o $@ -c $*INSTR.bc
+	$(CC) -g -o $@ -c $<
 
 clean:
 	\rm -rf $(DIRNAME)/$(EXEC_TEST) \
 			$(DIRNAME)/local_local/*.o \
-			$(DIRNAME)/local_local/*.bc \
 			$(DIRNAME)/remote_local/*.o \
-			$(DIRNAME)/remote_local/*.bc \
 			$(DIRNAME)/remote_remote/*.o \
-			$(DIRNAME)/remote_remote/*.bc \
 			$(DIRNAME)/bin

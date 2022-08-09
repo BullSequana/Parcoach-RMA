@@ -128,7 +128,7 @@ int MPI_Put(const void *origin_addr,
   rma_analyzer_update_on_comm_send(local_address, local_size,
                                    target_disp, target_size,
                                    target_rank, RMA_READ, RMA_WRITE,
-                                   0, NULL, win);
+                                   -1, 0, NULL, win);
 
   return PMPI_Put(origin_addr, origin_count, origin_datatype,
                   target_rank, target_disp, target_count,
@@ -160,7 +160,7 @@ int MPI_Get(void *origin_addr,
   rma_analyzer_update_on_comm_send(local_address, local_size,
                                    target_disp, target_size,
                                    target_rank, RMA_WRITE, RMA_READ,
-                                   0, NULL, win);
+                                   -1, 0, NULL, win);
 
   return PMPI_Get(origin_addr, origin_count, origin_datatype,
                   target_rank, target_disp, target_count,
@@ -191,7 +191,7 @@ int MPI_Accumulate(const void *origin_addr,
   rma_analyzer_update_on_comm_send(local_address, local_size,
                                    target_disp, target_size,
                                    target_rank, RMA_READ, RMA_WRITE,
-                                   0, NULL, win);
+                                   -1, 0, NULL, win);
 
   return PMPI_Accumulate(origin_addr, origin_count, origin_datatype,
                          target_rank, target_disp, target_count,
@@ -234,7 +234,7 @@ int MPI_Win_wait(MPI_Win win)
 /* Free memory */
 int MPI_Win_free(MPI_Win *win)
 {
-  rma_analyzer_state *state = rma_analyzer_get_state(*win);
+  const rma_analyzer_state *state = rma_analyzer_get_state(*win);
 
   if(state->count_fence > 0)
   {

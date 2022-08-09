@@ -50,40 +50,9 @@ int interval_list_size(Interval_list *li_inter)
   return size;
 }
 
-int is_empty_list(Interval_list *li_inter)
+int is_empty_list(const Interval_list *li_inter)
 {
   return (li_inter == NULL);
-}
-
-void insert_interval_tail(Interval_list *li_inter, Interval itv)
-{
-  Interval_list *new_tail;
-  new_tail = malloc(sizeof(Interval_list));
-
-  if(new_tail == NULL)
-  {
-    LOG(stderr, "Erreur : probleme allocation !\n");
-    exit(EXIT_FAILURE);
-  }
-
-  /* Fill up new last link of the list */
-  new_tail->itv = itv;
-  new_tail->next_itv = NULL;
-
-  /* If the list is empty, the new tail is the whole list, just
-   * return it */
-  if(is_empty_list(li_inter))
-    return;
-
-  /* If not, go through the list to find last link and add the new
-   * tail at the end */
-  Interval_list *tmp_chain;
-  tmp_chain = li_inter;
-  while(tmp_chain->next_itv != NULL)
-    tmp_chain = tmp_chain->next_itv;
-
-  /* We found the last link, just add it */
-  tmp_chain->next_itv = new_tail;
 }
 
 Interval_list *insert_interval_head(Interval_list *li_inter, Interval itv)

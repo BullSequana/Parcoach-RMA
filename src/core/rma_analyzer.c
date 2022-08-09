@@ -5,12 +5,13 @@
 #include <errno.h>
 #include "rma_analyzer.h"
 #include <mpi.h>
+#include <mpi-ext.h>
 #include <pthread.h>
 #include <inttypes.h>
 #include <limits.h>
 #include <assert.h>
 
-//#define USE_LIST 0 
+//#define USE_LIST 1
 #define USE_TREE 1
 
 /******************************************************
@@ -155,7 +156,7 @@ rma_analyzer_state *rma_analyzer_get_state(MPI_Win win)
 static int rma_analyzer_is_active_epoch(MPI_Win win)
 {
   LOG(stderr,"Getting state in %s\n", __func__);
-  rma_analyzer_state *state = rma_analyzer_get_state(win);
+  const rma_analyzer_state *state = rma_analyzer_get_state(win);
   return (state->active_epoch > 0);
 }
 
@@ -171,7 +172,7 @@ int rma_analyzer_save_interval(Interval *itv, MPI_Win win)
      || ((get_low_bound(itv) >= state->win_base)
          && (get_up_bound(itv) < (state->win_base + state -> win_size))))
   {
-    pthread_mutex_lock(&state->list_mutex);
+    pthread_mutex_lock(&state->interval_mutex);
 
     Interval *overlap_itv = NULL;
 #ifdef USE_TREE
@@ -182,8 +183,6 @@ int rma_analyzer_save_interval(Interval *itv, MPI_Win win)
 #endif
     {
       LOG(stderr,"Error : there is an intersection between the intervals in this List!!\n");
-      /* TODO: If you want to end the program instead of just printing an
-       * error, this is here that you should do it */
       if (overlap_itv != NULL)
       {
           int access_type = get_access_type(itv);
@@ -206,15 +205,15 @@ int rma_analyzer_save_interval(Interval *itv, MPI_Win win)
     }
 
 #ifdef USE_TREE
-    if(state->local_tree == NULL)
-      state->local_tree = new_interval_tree(itv);
-    else
-      insert_interval_tree(state->local_tree, itv);
-#else
+    state->local_tree = insert_interval_tree(state->local_tree, itv);
+    if (rma_analyzer_save_notif) {
+        rma_analyzer_save_notif(itv, win);
+    }
+#else // USE_TREE
     state->local_list = insert_interval_head(state->local_list, *itv);
-#endif
+#endif // USE_TREE
 
-    pthread_mutex_unlock(&state->list_mutex);
+    pthread_mutex_unlock(&state->interval_mutex);
 
     return 1;
   }
@@ -230,7 +229,7 @@ void rma_analyzer_save_interval_all_wins(uint64_t address,
                                          uint64_t size,
                                          Access_type access_type,
                                          int fileline,
-                                         char *filename)
+                                         const char *filename)
 {
   rma_analyzer_state *current, *next;
   int ret;
@@ -245,7 +244,7 @@ void rma_analyzer_save_interval_all_wins(uint64_t address,
     if(rma_analyzer_is_active_epoch(current->state_win))
     {
       Interval *saved_itv = create_interval(address, address + size,
-                                            access_type, fileline, filename);
+                                            access_type, -1, fileline, filename);
 
       ret = rma_analyzer_save_interval(saved_itv, current->state_win);
 
@@ -254,6 +253,24 @@ void rma_analyzer_save_interval_all_wins(uint64_t address,
       //print_interval_list(current->local_list);
     }
   }
+}
+
+/* Delete the interval from the local tree. */
+int rma_analyzer_delete_interval(Interval *itv, MPI_Win win)
+{
+  LOG(stderr,"Getting state in %s\n", __func__);
+  rma_analyzer_state *state = rma_analyzer_get_state(win);
+
+  pthread_mutex_lock(&state->interval_mutex);
+
+#ifdef USE_TREE
+  state->local_tree = delete_interval_tree(state->local_tree, itv);
+#endif // USE_TREE
+
+  pthread_mutex_unlock(&state->interval_mutex);
+
+  /* The interval has been removed */
+  return 0;
 }
 
 /* This routine is only to be called by the communication checking
@@ -280,7 +297,6 @@ void rma_analyzer_check_communication(Interval *received_itv, MPI_Win win)
       fc_MPI_Cancel(&mpi_request);
       state->count = 0;
       pthread_exit(NULL);
-      return;
     }
 
     /* Yield the thread when looping too much to reduce the pressure on
@@ -303,12 +319,12 @@ void *rma_analyzer_comm_check_thread(void *args)
 {
   uint64_t low_bound, up_bound;
   Access_type access_type;
-  int fileline, ret;
-  char *filename = NULL;
-  MPI_Win win = (MPI_Win) args;
+  int notif_id, fileline, ret;
+  const char *filename = NULL;
+  MPI_Win win = (MPI_Win)args;
 
   LOG(stderr,"Getting state in %s\n", __func__);
-  rma_analyzer_state *state = rma_analyzer_get_state(win);
+  const rma_analyzer_state *state = rma_analyzer_get_state(win);
 
   /* This interval is dedicated to receive intervals from other
    * processes during the whole lifetime of the thread. */
@@ -322,6 +338,7 @@ void *rma_analyzer_comm_check_thread(void *args)
   low_bound = get_low_bound(received);
   up_bound = get_up_bound(received);
   access_type = get_access_type(received);
+  notif_id = get_notif_id(received);
   filename = get_filename(received);
   fileline = get_fileline(received);
 
@@ -331,7 +348,8 @@ void *rma_analyzer_comm_check_thread(void *args)
    * accesses */
   Interval *saved_interval = create_interval(low_bound + state->win_base,
                                              up_bound + state->win_base,
-                                             access_type, fileline, filename);
+                                             access_type, notif_id,
+                                             fileline, filename);
 
   ret = rma_analyzer_save_interval(saved_interval, win);
 
@@ -350,6 +368,7 @@ void *rma_analyzer_comm_check_thread(void *args)
     low_bound = get_low_bound(received);
     up_bound = get_up_bound(received);
     access_type = get_access_type(received);
+    notif_id = get_notif_id(received);
     filename = get_filename(received);
     fileline = get_fileline(received);
 
@@ -357,9 +376,10 @@ void *rma_analyzer_comm_check_thread(void *args)
      * Add the window offset to the received interval to match the local
      * pointers addresses and find conflicts between remote and local
      * accesses */
-    Interval *saved_interval = create_interval(low_bound + state->win_base,
-                                               up_bound + state->win_base,
-                                               access_type, fileline, filename);
+    saved_interval = create_interval(low_bound + state->win_base,
+                                     up_bound + state->win_base,
+                                     access_type, notif_id,
+                                     fileline, filename);
 
     ret = rma_analyzer_save_interval(saved_interval, win);
 
@@ -411,11 +431,13 @@ void rma_analyzer_clear_comm_check_thread(int do_reduce, MPI_Win win)
    * zero to the number of communication the thread waits for. */
   if(do_reduce)
   {
+    int tmp = 0;
     for(int i = 0; i < state->size_comm; i++)
     {
-      fc_MPI_Reduce(&(state->array[i]), (void *)(&state->value), 1,
+      fc_MPI_Reduce(&(state->array[i]), (void *)(&tmp), 1,
                     MPI_INT, MPI_SUM, i, state->win_comm);
     }
+    state->value = tmp;
   }
   else
   {
@@ -435,12 +457,56 @@ void rma_analyzer_clear_comm_check_thread(int do_reduce, MPI_Win win)
 
 #ifdef USE_TREE
   //print_interval_tree_stats(state->local_tree);
-  //in_order_print_tree(state->local_tree);
-  free_interval_tree(state->local_tree);
-#else
+  //in_order_print_interval_tree(state->local_tree);
+  state->local_tree = free_interval_tree(state->local_tree);
+
+#ifdef OMPI_HAVE_MPI_EXT_NOTIFIED_RMA
+  //print_notif_tree_stats(state->notif_tree);
+  //in_order_print_notif_tree(state->notif_tree);
+  state->notif_tree = free_notif_tree(state->notif_tree);
+#endif // OMPI_HAVE_MPI_EXT_NOTIFIED_RMA
+
+#else // USE_TREE
   //print_interval_list(state->local_list);
   free_interval_list(&state->local_list);
-#endif
+#endif // USE_TREE
+}
+
+/* This routine initializes the state variables needed for the communication
+ * checking thread to work and starts it on all windows that have been cleared
+ * by a synchronization. This is particularly used for in-window
+ * synchronizations that are not attached to a specific window, such as
+ * MPI_Barrier.  */
+void rma_analyzer_init_comm_check_thread_all_wins()
+{
+  rma_analyzer_state *current, *next;
+  HASH_ITER(hh, state_htbl, current, next)
+  {
+    /* Only restarts if the epoch has not been really stopped, but the flag has
+     * been flipped by a synchronization inside the epoch */
+    if((0 == rma_analyzer_is_active_epoch(current->state_win)) &&
+       (1 == current->from_sync))
+    {
+        rma_analyzer_init_comm_check_thread(current->state_win);
+    }
+  }
+}
+
+/* This routine clears the state variables needed for the communication
+ * checking thread to work on all windows. This is particularly used for
+ * in-window synchronizations that are not attached to a specific window, such
+ * as Barrier.  */
+void rma_analyzer_clear_comm_check_thread_all_wins(int do_reduce)
+{
+  rma_analyzer_state *current, *next;
+  HASH_ITER(hh, state_htbl, current, next)
+  {
+    if(rma_analyzer_is_active_epoch(current->state_win))
+    {
+        rma_analyzer_clear_comm_check_thread(do_reduce, current->state_win);
+        current->from_sync = 1;
+    }
+  }
 }
 
 /* This routine takes care of the update of the local list with the
@@ -453,8 +519,9 @@ void rma_analyzer_update_on_comm_send(uint64_t local_address,
                                       int target_rank,
                                       Access_type local_access_type,
                                       Access_type target_access_type,
+                                      int notif_id,
                                       int fileline,
-                                      char *filename,
+                                      const char *filename,
                                       MPI_Win win)
 {
   LOG(stderr,"Getting state in %s\n", __func__);
@@ -463,18 +530,16 @@ void rma_analyzer_update_on_comm_send(uint64_t local_address,
   /* The local data race detection begins here */
   Interval *local_itv = create_interval(local_address,
                                         local_address + local_size - 1,
-                                        local_access_type, fileline, filename);
-
-  //LOG(stderr,"local ");
-  //print_interval(*local_itv);
+                                        local_access_type, -1,
+                                        fileline, filename);
 
   rma_analyzer_save_interval(local_itv, win);
-  //print_interval_list(state->local_list);
 
   /* The remote data race detection begins here */
-  Interval *target_itv = create_interval(target_disp,
-                                         target_disp + target_size - 1,
-                                         target_access_type, fileline, filename);
+  const Interval *target_itv = create_interval(target_disp,
+                                               target_disp + target_size - 1,
+                                               target_access_type, notif_id,
+                                               fileline, filename);
 
   /* Send the struct Interval with interval_datatype MPI datatype to the target */
   fc_MPI_Send(target_itv, 1, state->interval_datatype, target_rank,
@@ -523,7 +588,7 @@ void rma_analyzer_start(void *base,MPI_Aint size, MPI_Comm comm, MPI_Win *win, L
   }
 
   /* Check if filtering of the window has been deactivated by env */
-  char *tmp = getenv("RMA_ANALYZER_FILTER_WINDOW");
+  const char *tmp = getenv("RMA_ANALYZER_FILTER_WINDOW");
   if (tmp)
   {
     rma_analyzer_filter_window = atoi(tmp);
@@ -538,9 +603,11 @@ void rma_analyzer_start(void *base,MPI_Aint size, MPI_Comm comm, MPI_Win *win, L
   fc_MPI_Comm_size(new_state->win_comm, &(new_state->size_comm));
   new_state->array = malloc(sizeof(int) * new_state->size_comm);
 
-  pthread_mutex_init(&new_state->list_mutex, NULL);
+  pthread_mutex_init(&new_state->interval_mutex, NULL);
+  pthread_mutex_init(&new_state->notif_mutex, NULL);
 #ifdef USE_TREE
   new_state->local_tree = NULL;
+  new_state->notif_tree = NULL;
 #else 
   new_state->local_list = create_interval_list();
 #endif
@@ -569,6 +636,7 @@ void rma_analyzer_start(void *base,MPI_Aint size, MPI_Comm comm, MPI_Win *win, L
   new_state->count_fence = 0;
   new_state->count = 0;
   new_state->active_epoch = 0;
+  new_state->from_sync = 0;
 
   HASH_ADD_PTR(state_htbl, state_win, new_state);
   LOG(stderr,"New state window added for window %p\n", (void *)win);
@@ -585,3 +653,56 @@ void rma_analyzer_stop(MPI_Win win)
   fc_MPI_Type_free(&state->interval_datatype);
   HASH_DEL(state_htbl, state);
 }
+
+#ifdef OMPI_HAVE_MPI_EXT_NOTIFIED_RMA
+
+/************************************************
+ *       Notified communication handling        *
+ ***********************************************/
+
+/* Save the interval with notification given in parameter so that we can purge
+ * it from local tree at wait time. */
+int rma_analyzer_save_notif(Interval *itv, MPI_Win win)
+{
+  /* If negative notification ID, this is not a notified communication: return
+   * immediately. */
+  if (itv && itv->notification_id < 0) {
+    return 0;
+  }
+
+  LOG(stderr,"Getting state in %s\n", __func__);
+  rma_analyzer_state *state = rma_analyzer_get_state(win);
+
+  pthread_mutex_lock(&state->notif_mutex);
+  state->notif_tree = insert_notif_tree(state->notif_tree, itv);
+  pthread_mutex_unlock(&state->notif_mutex);
+
+  return 0;
+}
+
+/* From the notification ID, clear in the local tree and notification tree the
+ * associated intervals */
+int rma_analyzer_clear_from_notif_id(MPI_Win win, int notif_id)
+{
+  /* If negative notification ID, this is not a notified communication: return
+   * immediately. */
+  if (notif_id < 0) {
+    return 0;
+  }
+
+  LOG(stderr,"Getting state in %s\n", __func__);
+  rma_analyzer_state *state = rma_analyzer_get_state(win);
+
+
+  pthread_mutex_lock(&state->notif_mutex);
+  /* Clean local_tree from notif ID */
+  Interval *itv = find_interval_from_notif(state->notif_tree, notif_id);
+  rma_analyzer_delete_interval(itv, win);
+  /* Clean notif tree */
+  state->notif_tree = delete_notif_tree(state->notif_tree, notif_id);
+  pthread_mutex_unlock(&state->notif_mutex);
+
+  return 0;
+}
+
+#endif // OMPI_HAVE_MPI_EXT_NOTIFIED_RMA

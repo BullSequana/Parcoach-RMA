@@ -13,9 +13,9 @@
 # the command will submit the run script with 1,2,4,8,16,32,64,128,256,512,1024 processes (a total of 11 submissions)
 ######################################################################################################################
 
-PROCS=32
+PROCS=64
 total_procs=$PROCS
-nodes=4
+nodes=16
 
 #echo
 #echo "GLOBAL DOMAIN MFS LIKE (16M grid points)"
@@ -76,5 +76,5 @@ ulimit -s 65536
 EOF
 
 #./tra_adv_test_rma_put >> res14 2>&1
-time srun -N $nodes -n $PROCS -u --cpus-per-task=5 --ntasks-per-node=$(($PROCS / $nodes)) --exclusive -J traadv_kernel -p rome7402_NPS4 ./script_launch.sh
+time srun -x pise13 -N $nodes -n $PROCS -u --cpus-per-task=5 --ntasks-per-node=$(($PROCS / $nodes)) --exclusive -J traadv_kernel -p rome7402 ./script_launch.sh
 

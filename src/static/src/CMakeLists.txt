@@ -20,3 +20,7 @@ set(PARCOACH_LIB ${CMAKE_CURRENT_BINARY_DIR}/parcoachRMA${CMAKE_SHARED_LIBRARY_S
 configure_file(parcoach.in ${CMAKE_BINARY_DIR}/parcoach @ONLY)
 configure_file(parcoachBC.in ${CMAKE_BINARY_DIR}/parcoachBC @ONLY)
 
+if(COVERAGE)
+    add_compile_options(-g --coverage)
+    add_link_options(-lgcov --coverage)
+endif(COVERAGE)

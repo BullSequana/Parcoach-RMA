@@ -16,10 +16,9 @@ Interval_list *create_interval_list(void);
 void free_interval_list(Interval_list **li_inter);
 void print_interval_list(Interval_list *li_inter);
 int interval_list_size(Interval_list *li_inter);
-int is_empty_list(Interval_list *li_inter);
+int is_empty_list(const Interval_list *li_inter);
 
 /* Add and remove elements of the list routines */
-void insert_interval_tail(Interval_list *li_inter, Interval itv);
 Interval_list *insert_interval_head(Interval_list *li_inter, Interval itv);
 void remove_interval_tail(Interval_list **li_inter);
 void remove_interval_head(Interval_list **li_inter);

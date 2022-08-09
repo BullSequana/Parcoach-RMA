@@ -34,7 +34,8 @@ namespace {
 
 
 	private:
-		static int count_MPI, count_GET, count_PUT, count_ACC, count_FLUSH, count_FENCE, count_Win, count_Free, count_LOCK, count_UNLOCK, count_UNLOCKALL, count_LOCKALL, count_LOAD, count_STORE;
+		static int count_MPI, count_GET, count_PUT, count_ACC, count_FLUSH, count_FENCE, count_Win, count_Free, count_LOCK, count_UNLOCK, count_UNLOCKALL, count_LOCKALL, count_LOAD, count_STORE, count_BARRIER;
+		static int count_MPIX, count_PUT_NOTIFY, count_GET_NOTIFY, count_WAIT_NOTIFY, count_TEST_NOTIFY, count_Win_notify;
 		// Keep the address of all MPI functions in the function
 		vector<Value *> vecAddr = vector<Value *>();
 
