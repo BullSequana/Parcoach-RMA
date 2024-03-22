@@ -1,0 +1,90 @@
+#
+# Copyright (c) 2020-2024 Bull S.A.S. All rights reserved.
+#
+
+# This file is part of Parcoach RMA
+# Parcoach RMA is free software; you can redistribute it and/or modify it
+# under the terms of the GNU Lesser General Public License as published by
+# the Free Software Foundation; either version 2.1 of the License, or
+# (at your option) any later version.
+# Parcoach RMA is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+# or FITNESS FOR A PARTICULAR PURPOSE.
+# See the GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with Parcoach RMA.
+# If not, see <https://www.gnu.org/licenses/>.
+
+
+
+name = 'OpenMPI'
+version = '5.0.2'
+
+homepage = 'https://www.open-mpi.org/'
+description = """The Open MPI Project is an open source MPI-3 implementation."""
+
+##############################
+# To be specified with on-site toolchains, e.g. gcc or intel or ...
+##############################
+toolchain = SYSTEM
+
+##############################
+# To be modified depending on where the sources will be distributed
+##############################
+sources = [{
+    'filename': SOURCELOWER_TAR_GZ,
+        'git_config': {
+            'url': 'https://github.com/BullSequana/',
+            'repo_name': 'OpenMPI5',
+            'commit': '3bd4a6627714ca191804703ed06a94bf33db7d73',
+            'recursive': True
+        },
+}]
+
+builddependencies = [
+    ('pkgconf', '1.8.0', '', True),
+    ('Autotools', '20220317', '', ('GCCcore', '11.3.0')),
+    ('flex', '2.6.4', '', True),
+]
+
+dependencies = [
+    ('GCCcore', '11.3.0', '', True),
+    ('zlib', '1.2.12', '', True),
+    ('CUDA', '11.7', '', SYSTEM),
+]
+
+configopts = '--with-pmix=internal '
+configopts = '--with-libevent=internal '
+configopts = '--with-hwloc=internal '
+configopts += '--with-cma '
+configopts += '--with-lustre=no '
+configopts += '--with-verbs=no '
+configopts += '--with-hcoll=no '
+configopts += '--with-mxm=no '
+configopts += '--with-ucx=no '
+configopts += '--with-cuda '
+configopts += '--enable-debug=no '
+configopts += '--enable-debug-symbols=no '
+configopts += '--enable-memchecker=no '
+configopts += '--enable-wrapper-rpath=no '
+configopts += '--enable-wrapper-runpath=no '
+configopts += '--enable-mca-no-build=crs,snapc,pml-crcpw,pml-v,vprotocol,crcp,btl-usnic,btl-uct,btl-openib,coll-ml '
+configopts += '--enable-orterun-prefix-by-default=yes '
+configopts += '--enable-io-romio=yes '
+configopts += '--with-io-romio-flags=--with-file-system=ufs+nfs '
+configopts += '--enable-mpi1-compatibility '
+configopts += '--enable-mpi-notifications '
+
+configure_cmd_prefix = './autogen.pl CFLAGS="-DNDEBUG -O2 -g -m64" CXXFLAGS="-DNDEBUG -O2 -g -m64" FCFLAGS="-O2 -g -m64" '
+
+
+# to enable SLURM integration (site-specific)
+# configopts += '--with-slurm --with-pmix=external --with-libevent=external --with-ompi-pmix-rte'
+# Deactivate tests, because the make check tests of Open MPI fails on a
+# opal_path_nfs test probably related to the configuration of the machine more
+# than a buggy build.
+runtest = False
+
+skipsteps = ['sanitycheck']
+
+moduleclass = 'mpi'

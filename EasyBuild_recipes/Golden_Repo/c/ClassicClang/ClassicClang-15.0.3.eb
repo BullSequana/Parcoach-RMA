@@ -1,0 +1,66 @@
+#
+# Copyright (c) 2020-2024 Bull S.A.S. All rights reserved.
+#
+
+# This file is part of Parcoach RMA
+# Parcoach RMA is free software; you can redistribute it and/or modify it
+# under the terms of the GNU Lesser General Public License as published by
+# the Free Software Foundation; either version 2.1 of the License, or
+# (at your option) any later version.
+# Parcoach RMA is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+# or FITNESS FOR A PARTICULAR PURPOSE.
+# See the GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with Parcoach RMA.
+# If not, see <https://www.gnu.org/licenses/>.
+
+easyblock = 'CMakeMake'
+
+name = 'ClassicClang'
+version = '15.0.3'
+
+homepage = 'https://github.com/flang-compiler/classic-flang-llvm-project'
+description = """C, C++, Objective-C compiler, based on LLVM.  Does not
+ include C++ standard library -- use libstdc++ from GCC."""
+
+# Clang also depends on libstdc++ during runtime, but this dependency is
+# already specified as the toolchain.
+# toolchain = {'name': 'system', 'version': ''}
+toolchain = SYSTEM
+
+sources = [{
+    'filename': SOURCELOWER_TAR_GZ,
+    'git_config': {
+        'url': 'https://github.com/flang-compiler',
+        'repo_name': 'classic-flang-llvm-project',
+        'branch': 'release_15x'
+    },
+}]
+
+dependencies = [
+    ('GCCcore', '11.3.0'),
+    ('binutils', '2.38', '', ('GCCcore', '11.3.0')),
+    ('ncurses', '6.3'),
+]
+
+builddependencies = [
+    ('CMake', '3.24.3', '', True),
+]
+
+# assertions = False
+# usepolly = False
+# build_lld = False
+# libcxx = False
+# enable_rtti = False
+# build_extra_clang_tools = False
+# build_cmd_targets = ['X86']
+
+srcdir="llvm"
+
+configopts = '-DLLVM_ENABLE_PROJECTS="clang;openmp" -DLLVM_ENABLE_CLASSIC_FLANG=ON '
+configopts += '-DLLVM_ENABLE_RTTI=OFF '
+configopts += '-DCMAKE_BUILD_TYPE=Release '
+configopts += '-DLLVM_TARGETS_TO_BUILD=X86 '
+
+moduleclass = 'compiler'

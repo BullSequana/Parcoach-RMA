@@ -1,0 +1,64 @@
+#
+# Copyright (c) 2020-2024 Bull S.A.S. All rights reserved.
+#
+
+# This file is part of Parcoach RMA
+# Parcoach RMA is free software; you can redistribute it and/or modify it
+# under the terms of the GNU Lesser General Public License as published by
+# the Free Software Foundation; either version 2.1 of the License, or
+# (at your option) any later version.
+# Parcoach RMA is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+# or FITNESS FOR A PARTICULAR PURPOSE.
+# See the GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with Parcoach RMA.
+# If not, see <https://www.gnu.org/licenses/>.
+
+
+
+easyblock = 'MakeCp'
+
+name = 'PARCOACHRMA'
+version = '0.0.1'
+
+homepage = 'https://parcoach.github.io'
+description = """PARCOACH is an Open-source software (LGPL license) dedicated to the collective errors detection in parallel applications.
+                 This release is dedicated to the RMA-Analyzer, an additional module to be added to PARCOACH."""
+
+toolchain = {'name': 'ClassicClang', 'version': '10.0.1'}
+
+sources = [{
+    'filename': SOURCELOWER_TAR_GZ,
+    'git_config': {
+        'url': 'https://github.com/BullSequana',
+        'repo_name': 'Parcoach-RMA',
+        'branch': 'main'
+    },
+}]
+
+builddependencies = [
+    ('CMake', '3.24.3', '', True),
+]
+
+dependencies = [
+    ('ClassicClang', '10.0.1', '', True),
+    ('ClassicFlang', '10.0.1'),
+    ('OpenMPI-Bull', '5.0.2'),
+]
+
+files_to_copy = ['build/lib', 'build/include']
+
+sanity_check_paths = {
+    'files': ['include/rma_analyzer.h', 'lib/parcoachRMA.so', 'lib/librma_analyzer.a'],
+    'dirs': ['include', 'lib'],
+}
+
+build_cmd_targets = 'install'
+
+buildopts = 'CC=$EBROOTCLASSICCLANG/bin/clang CXX=$EBROOTCLASSICCLANG/bin/clang++'
+
+configopts = '-DPARCOACH_ENABLE_TESTS=OFF '
+configopts += '-DCMAKE_CXX_FLAGS="-L/usr/local/software/skylake/Stages/2023/software/GCCcore/11.3.0/lib64/ -lstdc++" '
+    
+moduleclass = 'tools'

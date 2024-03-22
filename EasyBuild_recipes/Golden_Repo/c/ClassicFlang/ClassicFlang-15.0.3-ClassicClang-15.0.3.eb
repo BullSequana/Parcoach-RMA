@@ -1,0 +1,61 @@
+##
+# Copyright (c) 2020-2024 Bull S.A.S. All rights reserved.
+#
+
+# This file is part of Parcoach RMA
+# Parcoach RMA is free software; you can redistribute it and/or modify it
+# under the terms of the GNU Lesser General Public License as published by
+# the Free Software Foundation; either version 2.1 of the License, or
+# (at your option) any later version.
+# Parcoach RMA is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+# or FITNESS FOR A PARTICULAR PURPOSE.
+# See the GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with Parcoach RMA.
+# If not, see <https://www.gnu.org/licenses/>.
+##
+
+
+easyblock = 'CMakeMake'
+
+name = 'ClassicFlang'
+version = '15.0.3'
+
+homepage = 'https://github.com/flang-compiler/flang'
+description = """Flang is a Fortran language front-end designed for integration with LLVM."""
+
+toolchain = {'name': 'ClassicClang', 'version': '15.0.3'}
+# Do not set optarch to True: it will cause the build to fail
+toolchainopts = {'optarch': False}
+
+sources = [{
+    'filename': SOURCELOWER_TAR_GZ,
+    'git_config': {
+        'url': 'https://github.com/flang-compiler',
+        'repo_name': 'flang',
+        'branch': 'master'
+        # 'commit': '1c99a086e0f3c1a2155fba1aa695022e5cce6d97'
+    },
+}]
+
+builddependencies = [
+    ('CMake', '3.24.3', '', True),
+]
+
+dependencies = [
+    ('GCCcore', '11.3.0', '', True),
+    ('libpgmath', '15.0.3'),
+    ('ClassicClang', '15.0.3', '', True),
+]
+
+keepsymlinks = True
+
+configopts = '-DCMAKE_INSTALL_PREFIX=$EBROOTCLASSICCLANG -DLLVM_CONFIG=$EBROOTCLASSICCLANG/bin/llvm-config -DCMAKE_CXX_COMPILER=$EBROOTCLASSICCLANG/bin/clang++ -DCMAKE_C_COMPILER=$EBROOTCLASSICCLANG/bin/clang -DCMAKE_Fortran_COMPILER=$EBROOTCLASSICCLANG/bin/flang -DCMAKE_Fortran_COMPILER_ID=Flang -DLLVM_TARGETS_TO_BUILD="X86" -DFLANG_LLVM_EXTENSIONS=ON'
+
+# Skip sanity check to avoid the issue of sanity check paths unable to check
+# for install, as the whole install of Classic Flang is made to be merged into
+# the Classic Clang installation folder.
+skipsteps = ['sanitycheck']
+
+moduleclass = 'compiler'

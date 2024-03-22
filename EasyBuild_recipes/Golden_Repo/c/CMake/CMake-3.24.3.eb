@@ -1,0 +1,44 @@
+#
+# Copyright (c) 2020-2024 Bull S.A.S. All rights reserved.
+#
+
+# This file is part of Parcoach RMA
+# Parcoach RMA is free software; you can redistribute it and/or modify it
+# under the terms of the GNU Lesser General Public License as published by
+# the Free Software Foundation; either version 2.1 of the License, or
+# (at your option) any later version.
+# Parcoach RMA is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+# or FITNESS FOR A PARTICULAR PURPOSE.
+# See the GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with Parcoach RMA.
+# If not, see <https://www.gnu.org/licenses/>.
+
+
+name = 'CMake'
+version = '3.24.3'
+
+homepage = 'https://www.cmake.org'
+
+description = """
+ CMake, the cross-platform, open-source build system.  CMake is a family of
+ tools designed to build, test and package software.
+"""
+
+toolchain = {'name': 'system', 'version': ''}
+
+source_urls = ['https://www.cmake.org/files/v%(version_major_minor)s']
+sources = [SOURCELOWER_TAR_GZ]
+checksums = ['b53aa10fa82bff84ccdb59065927b72d3bee49f4d86261249fc0984b3b367291']
+
+builddependencies = [
+    ('binutils', '2.38'),
+]
+
+dependencies = [
+    ('ncurses', '6.3'),
+    ('zlib', '1.2.12'),
+]
+
+moduleclass = 'devel'
