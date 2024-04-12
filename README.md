@@ -4,12 +4,21 @@ This is ParcoachRMA. The parcoachRMA pass instruments STORE/LOAD writing/reading
 ### Prerequisites
 
 #### CMake `>= 3.12`
-#### LLVM `= 9.0.x`
+#### LLVM `= 10.0.x`
 
 
 ### Installation
 
-#### To build parcoachRMA llvm pass and the runtime library associated:
+#### Installation through Spack or EasyBuild
+Spack and EasyBuild are provided with this repository. They can be used to install 
+parcoachRMA in user space.
+
+The recipes will build an [LLVM fork](https://github.com/flang-compiler/flang) that
+supports flang (previously known as F18) and compile BullOpenMPI using that compiler.
+The resulting ParcoachRMA can then be used to analyze Fortran programs.
+
+
+#### Manually build parcoachRMA llvm pass and the runtime library associated:
 
 ```bash
 cd path_to_parcoachRMA
@@ -27,7 +36,6 @@ cmake .. -DLLVM_DIR=path_to_llvm_install/lib/cmake/llvm/
 
 You can run 'ctest --verbose' to see the commands executing the tests
 NOTE: ctest is not finished yet
-
 
 ### Run the pass on a single file
 
